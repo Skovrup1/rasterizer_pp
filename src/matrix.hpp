@@ -136,6 +136,17 @@ struct Mat4x4f {
         return result;
     }
 
+    static constexpr Mat4x4f perspective(f32 fov, f32 aspect, f32 near,
+                                         f32 far) {
+        Mat4x4f m{};
+        m[0][0] = aspect * (1 / tan(fov / 2));
+        m[1][1] = 1 / tan(fov / 2);
+        m[2][2] = far / (far - near);
+        m[2][3] = (-far * near) / (far - near);
+        m[3][2] = 1.0;
+        return m;
+    }
+
     template <typename... Args>
     static constexpr Mat4x4f scale(Args... args) {
         f32 scalars[] = {static_cast<f32>(args)...};
