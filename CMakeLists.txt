@@ -26,6 +26,7 @@ file(GLOB SRCS
     src/triangle.cpp
     src/triangle.hpp
     src/matrix.hpp
+    src/texture.hpp
 )
 
 message("src files:")

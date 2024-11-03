@@ -1,62 +1,6 @@
 #include "mesh.hpp"
 #include "core.hpp"
 
-Vec3 cube_vertices[N_CUBE_VERTICES] = {
-    {-1, -1, -1}, // 1
-    {-1, 1, -1},  // 2
-    {1, 1, -1},   // 3
-    {1, -1, -1},  // 4
-    {1, 1, 1},    // 5
-    {1, -1, 1},   // 6
-    {-1, 1, 1},   // 7
-    {-1, -1, 1},  // 8
-};
-
-face cube_faces[N_CUBE_FACES] = {
-    // front
-    {.a = 1, .b = 2, .c = 3},
-    {.a = 1, .b = 3, .c = 4},
-    // right
-    {.a = 4, .b = 3, .c = 5},
-    {.a = 4, .b = 5, .c = 6},
-    // back
-    {.a = 6, .b = 5, .c = 7},
-    {.a = 6, .b = 7, .c = 8},
-    // left
-    {.a = 8, .b = 7, .c = 2},
-    {.a = 8, .b = 2, .c = 1},
-    // top
-    {.a = 2, .b = 7, .c = 5},
-    {.a = 2, .b = 5, .c = 3},
-    // bottom
-    {.a = 6, .b = 8, .c = 1},
-    {.a = 6, .b = 1, .c = 4}};
-
-u32 cube_colors[N_CUBE_FACES] = {
-    0xffff0000, 0xffff0000, 0xff00ff00, 0xff00ff00, 0xff0000ff, 0xff0000ff,
-    0xffffff00, 0xffffff00, 0xffff00ff, 0xffff00ff, 0xff00ffff, 0xff00ffff,
-};
-
-Mesh load_cube_mesh_data() {
-    Mesh new_mesh{};
-    for (u32 i = 0; i < N_CUBE_VERTICES; i++) {
-        Vec3 cube_vertex = cube_vertices[i];
-        new_mesh.vertex_buffer.push_back(cube_vertex);
-    }
-    for (u32 i = 0; i < N_CUBE_FACES; i++) {
-        face cube_face = cube_faces[i];
-        new_mesh.index_buffer.push_back(cube_face);
-    }
-    for (u32 i = 0; i < N_CUBE_FACES; i++) {
-        u32 cube_color = cube_colors[i];
-        new_mesh.color_buffer.push_back(cube_color);
-    }
-
-    new_mesh.scale = Vec3f{1, 1, 1};
-
-    return new_mesh;
-}
-
 struct Token {
     enum Type {
         UNINITIALIZED,
@@ -91,26 +35,26 @@ i32 cursor_prev_line = 0;
 
 std::vector<const char *> id_buffer;
 
- bool is_at_end() { return cursor >= buffer.size(); }
+bool is_at_end() { return cursor >= buffer.size(); }
 
- char advance() { return buffer[cursor++]; }
+char advance() { return buffer[cursor++]; }
 
- void add_token_i(Token::Type tag, i32 i) {
+void add_token_i(Token::Type tag, i32 i) {
     Token token = {.tag = tag, .i = i};
     token_buffer.push_back(token);
 }
 
- void add_token_f(Token::Type tag, f32 f) {
+void add_token_f(Token::Type tag, f32 f) {
     Token token = {.tag = tag, .f = f};
     token_buffer.push_back(token);
 }
 
- void add_token_u(Token::Type tag, u32 u) {
+void add_token_u(Token::Type tag, u32 u) {
     Token token = {.tag = tag, .u = u};
     token_buffer.push_back(token);
 }
 
- void add_token(Token::Type tag) { add_token_u(tag, 0); }
+void add_token(Token::Type tag) { add_token_u(tag, 0); }
 
 /* bool match(char expected) {
     if (is_at_end()) {
@@ -124,7 +68,7 @@ std::vector<const char *> id_buffer;
     return true;
 }*/
 
- char peek() {
+char peek() {
     if (is_at_end()) {
         return '\0';
     }
@@ -132,7 +76,7 @@ std::vector<const char *> id_buffer;
     return buffer[cursor];
 }
 
- char peek_next() {
+char peek_next() {
     if (cursor + 1 >= buffer.size()) {
         return '\0';
     }
@@ -140,7 +84,7 @@ std::vector<const char *> id_buffer;
     return buffer[cursor + 1];
 }
 
- void number() {
+void number() {
     while (isdigit(peek())) {
         advance();
     }
@@ -165,7 +109,7 @@ std::vector<const char *> id_buffer;
     }
 }
 
- void keyword() {
+void keyword() {
     while (isalpha(peek())) {
         advance();
     }
@@ -195,7 +139,7 @@ std::vector<const char *> id_buffer;
     add_token_u(Token::IDENTIFIER, id_buffer.size() - 1);
 }
 
- void scan_token() {
+void scan_token() {
     char c = advance();
     switch (c) {
     case '#':
@@ -321,15 +265,28 @@ Mesh load_obj(const char *path) {
                                               token_buffer[i + 3].f});
             i += 3;
             break;
+        case Token::UV:
+            new_mesh.uv_buffer.push_back({token_buffer[i + 1].f, token_buffer[i + 2].f});
+            i += 2;
+            break;
         case Token::FACE:
-            new_mesh.index_buffer.push_back({.a = token_buffer[i + 1].i,
-                                             .b = token_buffer[i + 4].i,
-                                             .c = token_buffer[i + 7].i});
-            i += 7;
+            // .obj is 1 index, so convert to 0 index
+            new_mesh.index_buffer.push_back(token_buffer[i + 1].i - 1),
+                new_mesh.index_buffer.push_back(token_buffer[i + 4].i - 1),
+                new_mesh.index_buffer.push_back(token_buffer[i + 7].i - 1),
+
+                // .obj is 1 index, so convert to 0 index
+                new_mesh.uv_index_buffer.push_back(token_buffer[i + 2].i - 1),
+                new_mesh.uv_index_buffer.push_back(token_buffer[i + 5].i - 1),
+                new_mesh.uv_index_buffer.push_back(token_buffer[i + 8].i - 1),
+                i += 9;
+            break;
         default:
             break;
         }
     }
+
+    new_mesh.scale = Vec3f{1, 1, 1};
 
     return new_mesh;
 }

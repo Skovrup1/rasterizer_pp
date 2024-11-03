@@ -140,7 +140,7 @@ struct Vec4f {
         f32 data[4];
     };
 
-    Vec4f() {}
+    Vec4f() : w{1} {}
 
     Vec4f(std::initializer_list<f32> list) {
         usize i = 0;
@@ -150,6 +150,7 @@ struct Vec4f {
         for (; i < size(); i++) {
             data[i] = 0;
         }
+        w = 1;
     }
 
     Vec4f(Vec3f v) {

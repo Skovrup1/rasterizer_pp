@@ -2,35 +2,45 @@
 #include "display.hpp"
 #include "matrix.hpp"
 #include "mesh.hpp"
+#include "texture.hpp"
 #include "vector.hpp"
 
 u64 counter_frequency;
+u64 frame_start;
+u64 frame_end;
+f64 frame_time;
 
 bool is_running = false;
 
 Mesh mesh;
+const u32 *mesh_texture;
 
 std::vector<triangle> triangles_to_render;
 
 Vec3 camera_position = {0, 0, 0};
-
-const f32 fov_factor = 640;
+Mat4x4f proj_matrix;
 
 enum RenderMode {
-    FILL = 0x1,
-    FILL_WIREFRAME = 0x10,
-    WIREFRAME = 0x1000,
-    WIREFRAME_REDDOT = 0x10000,
+    FILL = 0b1,
+    FILL_WIREFRAME = 0b10,
+    WIREFRAME = 0b100,
+    WIREFRAME_REDDOT = 0b1000,
+    TEXTURED = 0b10000,
+    TEXTURED_WIREFRAME = 0b100000,
+    //... = 0x10000000,
+    //... = 0x100000000,
 };
+
+RenderMode render_mode = RenderMode::WIREFRAME;
 
 u32 fill_color = 0xffdddddd;
 u32 wireframe_color = 0xff00ff00;
 u32 dot_color = 0xffff0000;
 
-RenderMode render_mode = RenderMode::WIREFRAME;
-
 bool use_color = true;
 bool cull_mode = true;
+
+Vec3 light = {0.0, 0.0, 1.0};
 
 void setup() {
     counter_frequency = SDL_GetPerformanceFrequency() / 1000;
@@ -40,11 +50,18 @@ void setup() {
     frame_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
                                              SDL_TEXTUREACCESS_STREAMING,
                                              window_width, window_height);
-    mesh = load_cube_mesh_data();
-    // test_mesh = load_obj("assets/f22.obj");
+    f32 fov = M_PI / 3.0;
+    f32 aspect = window_height / static_cast<float>(window_width);
+    f32 near = 0.1;
+    f32 far = 100;
+    proj_matrix = Mat4x4f::perspective(fov, aspect, near, far);
+
+    // mesh = load_cube_mesh_data();
+    mesh = load_obj("assets/cube.obj");
+    mesh_texture = reinterpret_cast<const u32*>(REDBRICK_TEXTURE);
 }
 
-void process_input() {
+void input() {
     SDL_Event event;
     SDL_PollEvent(&event);
 
@@ -67,10 +84,16 @@ void process_input() {
             break;
         case SDLK_3:
             render_mode = RenderMode::FILL;
-            wireframe_color = 0xff000000;
             break;
         case SDLK_4:
             render_mode = RenderMode::FILL_WIREFRAME;
+            wireframe_color = 0xff000000;
+            break;
+        case SDLK_5:
+            render_mode = RenderMode::TEXTURED;
+            break;
+        case SDLK_6:
+            render_mode = RenderMode::TEXTURED_WIREFRAME;
             wireframe_color = 0xff000000;
             break;
         case SDLK_C:
@@ -89,14 +112,22 @@ void process_input() {
     }
 }
 
-// project a 3d vector to a 2d vector
-Vec2 project(Vec3 p) {
-    Vec2 proj_p = {
-        .x = fov_factor * p.x / p.z,
-        .y = fov_factor * p.y / p.z,
-    };
+u32 light_apply_intensity(u32 color, f32 factor) {
+    if (factor < 0) {
+        factor = 0;
+    }
+    if (factor > 1) {
+        factor = 1;
+    }
 
-    return proj_p;
+    u32 a = (color & 0xff000000);
+    u32 r = (color & 0x00ff0000) * factor;
+    u32 g = (color & 0x0000ff00) * factor;
+    u32 b = (color & 0x000000ff) * factor;
+
+    u32 new_color = a | (r & 0x00ff0000) | (g & 0x0000ff00) | (b & 0x000000ff);
+
+    return new_color;
 }
 
 void update() {
@@ -105,17 +136,18 @@ void update() {
     mesh.rotation.y += 0.01;
     mesh.rotation.z += 0.01;
 
-    u32 num_faces = mesh.index_buffer.size();
-    for (size_t i = 0; i < num_faces; i++) {
-        face mesh_face = mesh.index_buffer[i];
-        u32 face_color = mesh.color_buffer[i];
+    size_t vertices = mesh.index_buffer.size();
+    for (size_t i = 0; i < vertices; i += 3) {
+        Vec2 face_uv[3] = {mesh.uv_buffer[mesh.uv_index_buffer[i]],
+                           mesh.uv_buffer[mesh.uv_index_buffer[i + 1]],
+                           mesh.uv_buffer[mesh.uv_index_buffer[i + 2]]};
 
-        Vec3 face_vertices[3];
-        face_vertices[0] = mesh.vertex_buffer[mesh_face.a - 1];
-        face_vertices[1] = mesh.vertex_buffer[mesh_face.b - 1];
-        face_vertices[2] = mesh.vertex_buffer[mesh_face.c - 1];
+        Vec3 face_vertices[3] = {
+            mesh.vertex_buffer[mesh.index_buffer[i]],
+            mesh.vertex_buffer[mesh.index_buffer[i + 1]],
+            mesh.vertex_buffer[mesh.index_buffer[i + 2]],
+        };
 
-        Vec3 transformed_vertices[3];
         for (int j = 0; j < 3; j++) {
             Vec4 transformed_vertex = Vec4{face_vertices[j]};
 
@@ -128,58 +160,72 @@ void update() {
                 Mat4x4f::translate(mesh.translate.x, mesh.translate.y,
                                    mesh.translate.z);
 
-            transformed_vertices[j] = world_matrix * transformed_vertex;
+            face_vertices[j] = world_matrix * transformed_vertex;
         }
+
+        Vec3 &a = face_vertices[0];
+        Vec3 &b = face_vertices[1];
+        Vec3 &c = face_vertices[2];
+
+        Vec3 ab = b - a;
+        Vec3 ac = c - a;
+        ab = norm(ab);
+        ac = norm(ac);
+
+        Vec3 normal = cross(ab, ac);
+        normal = norm(normal);
+
+        // vector between a and camera
+        Vec3 cam_ray = camera_position - a;
 
         // backface culling
         if (cull_mode) {
-            Vec3 a = transformed_vertices[0];
-            Vec3 b = transformed_vertices[1];
-            Vec3 c = transformed_vertices[2];
-
-            Vec3 ab = b - a;
-            Vec3 ac = c - a;
-            ab = norm(ab);
-            ac = norm(ac);
-
-            Vec3 normal = cross(ab, ac);
-            normal = norm(normal);
-
-            // vector between a and camera
-            Vec3 cam_ray = camera_position - a;
-
             float alignment = dot(normal, cam_ray);
             if (alignment < 0) {
                 continue;
             }
         }
 
-        f32 avg_depth = (transformed_vertices[0].z + transformed_vertices[1].z +
-                         transformed_vertices[2].z) /
-                        3;
+        f32 avg_depth =
+            (face_vertices[0].z + face_vertices[1].z + face_vertices[2].z) / 3;
 
-        triangle projected_triangle = {.color = face_color,
-                                       .avg_depth = avg_depth};
+        f32 factor = -dot(normal, light);
+        u32 color = fill_color;
+        color = light_apply_intensity(color, factor);
+
+        Vec4 proj_points[3];
         for (int j = 0; j < 3; j++) {
-            Vec2 projected_point = project(transformed_vertices[j]);
+            proj_points[j] = project(proj_matrix, face_vertices[j]);
 
-            // scale and translate to middle of screen
-            projected_point.x += window_width / 2.0;
-            projected_point.y += window_height / 2.0;
+            // scale into view
+            proj_points[j].x *= window_width / 2.0;
+            proj_points[j].y *= window_height / 2.0;
 
-            projected_triangle.points[j] = projected_point;
+            // invert in y
+            proj_points[j].y *= -1;
+
+            // translate to middle of screen
+            proj_points[j].x += window_width / 2.0;
+            proj_points[j].y += window_height / 2.0;
         }
+
+        triangle projected_triangle = {
+            .points = {proj_points[0].x, proj_points[0].y, proj_points[1].x,
+                       proj_points[1].y, proj_points[2].x, proj_points[2].y},
+            .uv = {face_uv[0], face_uv[1], face_uv[2]},
+            .color = color,
+            .avg_depth = avg_depth};
 
         triangles_to_render.push_back(projected_triangle);
     }
 
+    // sort front to back
     std::sort(
         triangles_to_render.begin(), triangles_to_render.end(),
         [&](triangle a, triangle b) { return a.avg_depth > b.avg_depth; });
 }
 
 void render() {
-
     draw_grid(40, 40);
 
     u32 num_triangles = triangles_to_render.size();
@@ -195,22 +241,33 @@ void render() {
                       dot_color);
         }
 
-        if (render_mode & (RenderMode::FILL_WIREFRAME | RenderMode::WIREFRAME |
-                           RenderMode::WIREFRAME_REDDOT)) {
+        if (render_mode & (RenderMode::FILL_WIREFRAME | RenderMode::FILL)) {
+            draw_filled_triangle(triangle.points[0].x, triangle.points[0].y,
+                                 triangle.points[1].x, triangle.points[1].y,
+                                 triangle.points[2].x, triangle.points[2].y,
+                                 triangle.color);
+        }
+
+        if (render_mode &
+            (RenderMode::TEXTURED | RenderMode::TEXTURED_WIREFRAME)) {
+            draw_textured_triangle(
+                triangle.points[0].x, triangle.points[0].y, triangle.uv[0].r,
+                triangle.uv[0].g, //
+                triangle.points[1].x, triangle.points[1].y, triangle.uv[1].r,
+                triangle.uv[1].g, //
+                triangle.points[2].x, triangle.points[2].y, triangle.uv[2].r,
+                triangle.uv[2].g, mesh_texture);
+        }
+
+        if (render_mode &
+            (RenderMode::FILL_WIREFRAME | RenderMode::WIREFRAME |
+             RenderMode::WIREFRAME_REDDOT | RenderMode::TEXTURED_WIREFRAME)) {
             draw_triangle(triangle.points[0].x, triangle.points[0].y,
                           triangle.points[1].x, triangle.points[1].y,
                           triangle.points[2].x, triangle.points[2].y,
                           wireframe_color);
         }
 
-        u32 render_color = use_color ? triangle.color : fill_color;
-
-        if (render_mode & (RenderMode::FILL_WIREFRAME | RenderMode::FILL)) {
-            draw_filled_triangle(triangle.points[0].x, triangle.points[0].y,
-                                 triangle.points[1].x, triangle.points[1].y,
-                                 triangle.points[2].x, triangle.points[2].y,
-                                 render_color);
-        }
     }
 
     triangles_to_render.clear();
@@ -228,14 +285,14 @@ int main() {
     setup();
 
     while (is_running) {
-        u64 frame_start = SDL_GetPerformanceCounter();
+        frame_start = SDL_GetPerformanceCounter();
 
-        process_input();
+        input();
         update();
         render();
 
-        u64 frame_end = SDL_GetPerformanceCounter();
-        f64 frame_time = (frame_end - frame_start) / (f64)counter_frequency;
+        frame_end = SDL_GetPerformanceCounter();
+        frame_time = (frame_end - frame_start) / (f64)counter_frequency;
 
         // sleep for most of the time
         if (frame_time < TARGET_FRAMETIME) {

@@ -103,6 +103,16 @@ struct Mat4x4f {
         return result;
     }
 
+    friend Vec4f project(const Mat4x4f &m, const Vec4f &v) {
+        Vec4f result = m * v;
+
+        result.x /= result.w;
+        result.y /= result.w;
+        result.z /= result.w;
+
+        return result;
+    }
+
     static constexpr usize rows() { return 4; }
 
     static constexpr usize cols() { return 4; }

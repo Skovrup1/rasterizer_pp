@@ -150,12 +150,6 @@ void draw_line_b(i32 x0, i32 y0, i32 x1, i32 y1, u32 color) {
     }
 }
 
-void draw_triangle(i32 x0, i32 y0, i32 x1, i32 y1, i32 x2, i32 y2, u32 color) {
-    draw_line_b(x0, y0, x1, y1, color);
-    draw_line_b(x1, y1, x2, y2, color);
-    draw_line_b(x2, y2, x0, y0, color);
-}
-
 void render_frame_buffer() {
     SDL_UpdateTexture(frame_buffer_texture, NULL, frame_buffer.data(),
                       window_width * sizeof(u32));
