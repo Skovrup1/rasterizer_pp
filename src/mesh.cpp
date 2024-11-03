@@ -260,26 +260,37 @@ Mesh load_obj(const char *path) {
     for (usize i = 0; i < token_buffer.size(); i++) {
         switch (token_buffer[i].tag) {
         case Token::VERTEX:
-            new_mesh.vertex_buffer.push_back({token_buffer[i + 1].f,
+            new_mesh.vertex_buffer.push_back({token_buffer[i + 3].f,
                                               token_buffer[i + 2].f,
-                                              token_buffer[i + 3].f});
+                                              token_buffer[i + 1].f});
             i += 3;
             break;
         case Token::UV:
-            new_mesh.uv_buffer.push_back({token_buffer[i + 1].f, token_buffer[i + 2].f});
+            new_mesh.uv_buffer.push_back(
+                {token_buffer[i + 1].f, token_buffer[i + 2].f});
             i += 2;
             break;
         case Token::FACE:
             // .obj is 1 index, so convert to 0 index
-            new_mesh.index_buffer.push_back(token_buffer[i + 1].i - 1),
-                new_mesh.index_buffer.push_back(token_buffer[i + 4].i - 1),
-                new_mesh.index_buffer.push_back(token_buffer[i + 7].i - 1),
+            new_mesh.index_buffer.push_back(token_buffer[i + 7].i - 1);
+            new_mesh.index_buffer.push_back(token_buffer[i + 4].i - 1);
+            new_mesh.index_buffer.push_back(token_buffer[i + 1].i - 1);
 
-                // .obj is 1 index, so convert to 0 index
-                new_mesh.uv_index_buffer.push_back(token_buffer[i + 2].i - 1),
-                new_mesh.uv_index_buffer.push_back(token_buffer[i + 5].i - 1),
-                new_mesh.uv_index_buffer.push_back(token_buffer[i + 8].i - 1),
-                i += 9;
+            // .obj is 1 index, so convert to 0 index
+            new_mesh.uv_index_buffer.push_back(token_buffer[i + 8].i - 1);
+            new_mesh.uv_index_buffer.push_back(token_buffer[i + 5].i - 1);
+            new_mesh.uv_index_buffer.push_back(token_buffer[i + 2].i - 1);
+            
+            // .obj is 1 index, so convert to 0 index
+            /*new_mesh.index_buffer.push_back(token_buffer[i + 1].i - 1);
+            new_mesh.index_buffer.push_back(token_buffer[i + 4].i - 1);
+            new_mesh.index_buffer.push_back(token_buffer[i + 7].i - 1);*/
+
+            // .obj is 1 index, so convert to 0 index
+            /*new_mesh.uv_index_buffer.push_back(token_buffer[i + 2].i - 1);
+            new_mesh.uv_index_buffer.push_back(token_buffer[i + 5].i - 1);
+            new_mesh.uv_index_buffer.push_back(token_buffer[i + 8].i - 1);*/
+            i += 9;
             break;
         default:
             break;

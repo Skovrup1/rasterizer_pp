@@ -20,6 +20,20 @@ struct Vec2f {
         f32 data[2];
     };
 
+    Vec2f() {}
+
+    Vec2f(std::initializer_list<f32> list) {
+        usize i = 0;
+        for (; i < list.size(); i++) {
+            data[i] = list.begin()[i];
+        }
+        for (; i < size(); i++) {
+            data[i] = 0;
+        }
+    }
+
+    Vec2f(Vec4f v);
+
     static constexpr usize size() { return 2; }
 
     f32 &operator[](usize i) { return data[i]; }

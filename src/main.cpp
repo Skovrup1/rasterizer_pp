@@ -56,9 +56,8 @@ void setup() {
     f32 far = 100;
     proj_matrix = Mat4x4f::perspective(fov, aspect, near, far);
 
-    // mesh = load_cube_mesh_data();
     mesh = load_obj("assets/cube.obj");
-    mesh_texture = reinterpret_cast<const u32*>(REDBRICK_TEXTURE);
+    mesh_texture = reinterpret_cast<const u32 *>(REDBRICK_TEXTURE);
 }
 
 void input() {
@@ -210,8 +209,7 @@ void update() {
         }
 
         triangle projected_triangle = {
-            .points = {proj_points[0].x, proj_points[0].y, proj_points[1].x,
-                       proj_points[1].y, proj_points[2].x, proj_points[2].y},
+            .points = {proj_points[0], proj_points[1], proj_points[2]},
             .uv = {face_uv[0], face_uv[1], face_uv[2]},
             .color = color,
             .avg_depth = avg_depth};
@@ -251,11 +249,14 @@ void render() {
         if (render_mode &
             (RenderMode::TEXTURED | RenderMode::TEXTURED_WIREFRAME)) {
             draw_textured_triangle(
-                triangle.points[0].x, triangle.points[0].y, triangle.uv[0].r,
+                triangle.points[0].x, triangle.points[0].y,
+                triangle.points[0].z, triangle.points[0].w, triangle.uv[0].r,
                 triangle.uv[0].g, //
-                triangle.points[1].x, triangle.points[1].y, triangle.uv[1].r,
+                triangle.points[1].x, triangle.points[1].y,
+                triangle.points[1].z, triangle.points[1].w, triangle.uv[1].r,
                 triangle.uv[1].g, //
-                triangle.points[2].x, triangle.points[2].y, triangle.uv[2].r,
+                triangle.points[2].x, triangle.points[2].y,
+                triangle.points[2].z, triangle.points[2].w, triangle.uv[2].r,
                 triangle.uv[2].g, mesh_texture);
         }
 
@@ -267,7 +268,6 @@ void render() {
                           triangle.points[2].x, triangle.points[2].y,
                           wireframe_color);
         }
-
     }
 
     triangles_to_render.clear();
