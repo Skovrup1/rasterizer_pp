@@ -49,10 +49,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/s
 # Add warning and sanitizer flags specifically for the main project
 target_compile_options(${PROJECT_NAME} PRIVATE
     -Wno-nullability-completeness
-    #    -Wall
+    -Wall
     -Wwrite-strings
     -Wstrict-prototypes
-    #-Wmissing-declarations
+    -Wmissing-declarations
     -fno-common
     -Wtype-limits
     -Wformat-nonliteral
