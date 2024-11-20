@@ -70,8 +70,8 @@ void draw_filled_triangle(i32 x0, i32 y0, i32 x1, i32 y1, i32 x2, i32 y2,
     }
 }
 
-void draw_texel(i32 x, i32 y, const u32 *texture, Vec4 a, Vec4 b, Vec4 c, Vec2 a_uv, Vec2 b_uv,
-                Vec2 c_uv) {
+void draw_texel(i32 x, i32 y, const u32 *texture, Vec4 a, Vec4 b, Vec4 c,
+                Vec2 a_uv, Vec2 b_uv, Vec2 c_uv) {
     Vec2 p = {static_cast<f32>(x), static_cast<f32>(y)};
 
     Vec3 weights = barycentric_weights(a, b, c, p);
@@ -156,52 +156,48 @@ void draw_textured_triangle(i32 x0, i32 y0, f32 z0, f32 w0, f32 u0, f32 v0, //
     Vec2 b_uv = {u1, v1};
     Vec2 c_uv = {u2, v2};
 
-    float inv_slope_1 = 0;
-    float inv_slope_2 = 0;
+    i32 my = y1;
+    i32 mx = static_cast<f32>((x2 - x0) * (y1 - y0)) / (y2 - y0) + x0;
+    // fill_flat_bottom_triangle();
+    {
+        // y slope
+        f32 slope_1 = static_cast<f32>(x1 - x0) / (y1 - y0);
+        f32 slope_2 = static_cast<f32>(mx - x0) / (my - y0);
 
-    if (y1 - y0 != 0) inv_slope_1 = (float)(x1 - x0) / abs(y1 - y0);
-    if (y2 - y0 != 0) inv_slope_2 = (float)(x2 - x0) / abs(y2 - y0);
+        if (slope_1 > slope_2) {
+            std::swap(slope_1, slope_2);
+        }
 
-    if (y1 - y0 != 0) {
-        for (int y = y0; y <= y1; y++) {
-            int x_start = x1 + (y - y1) * inv_slope_1;
-            int x_end = x0 + (y - y0) * inv_slope_2;
+        f32 x_start = x0;
+        f32 x_end = x0;
 
-            if (x_end < x_start) {
-                std::swap(x_start, x_end); // swap if x_start is to the right of x_end
-            }
-
-            for (int x = x_start; x < x_end; x++) {
-                // Draw our pixel with the color that comes from the texture
+        for (i32 y = y0; y <= my; y++) {
+            for (i32 x = x_start; x <= x_end; x++) {
                 draw_texel(x, y, texture, a, b, c, a_uv, b_uv, c_uv);
             }
+            x_start += slope_1;
+            x_end += slope_2;
         }
     }
+    // fill_flat_top_triangle();
+    {
+        // y slope
+        f32 slope_1 = static_cast<f32>(x2 - x1) / (y2 - y1);
+        f32 slope_2 = static_cast<f32>(x2 - mx) / (y2 - my);
 
-    ///////////////////////////////////////////////////////
-    // Render the bottom part of the triangle (flat-top)
-    ///////////////////////////////////////////////////////
-    inv_slope_1 = 0;
-    inv_slope_2 = 0;
+        if (slope_1 < slope_2) {
+            std::swap(slope_1, slope_2);
+        }
 
-    if (y2 - y1 != 0) inv_slope_1 = (float)(x2 - x1) / abs(y2 - y1);
-    if (y2 - y0 != 0) inv_slope_2 = (float)(x2 - x0) / abs(y2 - y0);
+        f32 x_start = x2;
+        f32 x_end = x2;
 
-    if (y2 - y1 != 0) {
-        for (int y = y1; y <= y2; y++) {
-            int x_start = x1 + (y - y1) * inv_slope_1;
-            int x_end = x0 + (y - y0) * inv_slope_2;
-
-            if (x_end < x_start) {
-                std::swap(x_start, x_end); // swap if x_start is to the right of x_end
-            }
-
-            for (int x = x_start; x < x_end; x++) {
-                // Draw our pixel with the color that comes from the texture
+        for (i32 y = y2; y >= y1; y--) {
+            for (i32 x = x_start; x <= x_end; x++) {
                 draw_texel(x, y, texture, a, b, c, a_uv, b_uv, c_uv);
             }
+            x_start -= slope_1;
+            x_end -= slope_2;
         }
     }
-
 }
-

@@ -42,8 +42,7 @@ struct Mat3x3f {
 
     static constexpr usize size() { return 3 * 3; }
 
-    template <typename... Args>
-    static Mat3x3f scale(Args... args) {
+    template <typename... Args> static Mat3x3f scale(Args... args) {
         f32 scalars[] = {static_cast<f32>(args)...};
         static_assert(std::size(scalars) <= rows());
 
@@ -157,8 +156,7 @@ struct Mat4x4f {
         return m;
     }
 
-    template <typename... Args>
-    static constexpr Mat4x4f scale(Args... args) {
+    template <typename... Args> static constexpr Mat4x4f scale(Args... args) {
         f32 scalars[] = {static_cast<f32>(args)...};
         static_assert(std::size(scalars) <= rows());
 

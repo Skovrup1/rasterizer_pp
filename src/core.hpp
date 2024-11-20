@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <deque>
@@ -8,17 +9,16 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <numbers>
 #include <optional>
 #include <ranges>
 #include <span>
 #include <string>
 #include <thread>
 #include <vector>
-#include <algorithm>
-#include <numbers>
 
-#include <math.h>
 #include <assert.h>
+#include <math.h>
 
 #include <SDL3/SDL.h>
 
@@ -39,4 +39,3 @@ using f32 = float;
 using f64 = double;
 
 // using DeviceAddress = u64;
-
