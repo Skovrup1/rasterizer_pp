@@ -13,6 +13,7 @@ typedef struct {
     Vec2 uv[3];
     u32 color;
     f32 avg_depth;
+    i32 id;
 } triangle;
 
 void draw_triangle(i32 x0, i32 y0, //

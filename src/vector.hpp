@@ -164,7 +164,6 @@ struct Vec4f {
         for (; i < size(); i++) {
             data[i] = 0;
         }
-        w = 1;
     }
 
     Vec4f(Vec3f v) {
