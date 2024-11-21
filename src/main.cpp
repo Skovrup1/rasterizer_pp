@@ -57,7 +57,7 @@ void setup() {
     f32 far = 100;
     proj_matrix = Mat4x4f::perspective(fov, aspect, near, far);
 
-    mesh = load_cube_mesh_data();
+    mesh = load_obj("assets/f22.obj");
     mesh_texture = reinterpret_cast<const u32 *>(REDBRICK_TEXTURE);
 }
 
